@@ -1,0 +1,74 @@
+This Repo has following files
+-----------------------------
+1. How_To_Build_and_Boot.txt - This file
+2. qemu_config.config - linux Config file
+3. qemu_memtier_cmd.sh - Qemu commandline
+
+
+linux source code.
+------------------
+1. Clone the Linux source into your working directory.
+
+# git clone https://github.com/torvalds/linux.git
+
+How to build
+------------
+1. Copy qemu_config.config file to linux/
+2. cd linux
+3. make mod2yesconfig
+4. make -j$nproc
+
+How to Boot QEMU with the built kernel and memory tier support.
+--------------------------------------------------------------
+1. Install qemu-system-ppc
+
+  # sudo apt install qemu-system-ppc
+
+2. create a file with size 10737549312.
+
+  # fallocate -l 10737549312 /run/1.img
+
+2. Create a QEMU directory
+
+   # mkdir QEMU
+   # cd QEMU
+
+3. Download jammy-server-cloudimg-ppc64el.img to QEMU directory.
+
+   # wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-ppc64el.img
+
+4. Copy vmlinux from linux/ to QEMU directory.
+5. Copy  qemu_memtier_cmd.sh to QEMU directory.
+6. Start qemu
+
+   # ./qemu_memtier_cmd.sh
+
+How to create Memory tiers
+--------------------------
+1. log into the qemu system we booted in previous step.
+2. Install ndctl
+
+   sudo apt install ndctl
+
+3. Create a namespace.
+
+   ndctl create-namespace --force --mode=dax --region=0 -s 8G -a 2M
+
+4. List created namespaces
+
+  # ndctl list -RNu
+
+5. Convert the dax device to system RAM
+
+   echo dax0.0 > /sys/bus/dax/drivers/device_dax/unbind
+   echo dax0.0 > /sys/bus/dax/drivers/kmem/new_id
+
+6. Sometimes, the newly added memory block in step 4 may not get online, so online all memory blocks in /sys/devices/system/node/node2
+
+   # cd /sys/devices/system/node/node2
+   # for i in memory*; do echo 1 > $i/online; done
+
+7. Verify Memory tiers
+
+  # ls /sys/devices/virtual/memory_tiering/
+
